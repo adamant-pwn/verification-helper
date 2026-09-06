@@ -185,16 +185,16 @@ def _get_uncommented_code(path: pathlib.Path, *, iquotes_options: Tuple[str, ...
             raise BundleError(f'A fake g++ is detected. Please install the GNU C++ compiler.: {compiler}')
         raise BundleError(f"It's not g++. Please specify g++ with $CXX envvar.: {compiler}")
 
-    # Comment out #pragma GCC target() before preprocessing to avoid GCC emitting extra macros
+    # Comment out pragmas that make GCC emit extra macros while preprocessing.
     with open(str(path), 'rb') as f:
         source = f.read()
-    source = re.sub(rb'^(\s*)#\s*pragma\s+GCC\s+target\s*\(', rb'\1/* OJ_BUNDLE_PRAGMA */ // #pragma GCC target(', source, flags=re.MULTILINE)
+    source = re.sub(rb'^(\s*)#\s*pragma\s+GCC\s+(target|optimize)\s*\(', rb'\1/* OJ_BUNDLE_PRAGMA */ // #pragma GCC \2(', source, flags=re.MULTILINE)
 
     command = [compiler, '-x', 'c++', *iquotes_options, '-fpreprocessed', '-dD', '-E', '-']
     result = subprocess.check_output(command, input=source)
 
     # Uncomment pragmas in output
-    return re.sub(rb'^(\s*)/\*\s*OJ_BUNDLE_PRAGMA\s*\*/\s*//\s*#\s*pragma\s+GCC\s+target\s*\(', rb'\1#pragma GCC target(', result, flags=re.MULTILINE)
+    return re.sub(rb'^(\s*)/\*\s*OJ_BUNDLE_PRAGMA\s*\*/\s*//\s*#\s*pragma\s+GCC\s+(target|optimize)\s*\(', rb'\1#pragma GCC \2(', result, flags=re.MULTILINE)
 
 
 def get_uncommented_code(path: pathlib.Path, *, iquotes: List[pathlib.Path], compiler: str) -> bytes:

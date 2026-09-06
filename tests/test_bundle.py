@@ -65,6 +65,24 @@ class TestCPlusPlusBundlingUnit(unittest.TestCase):
                 self.assertIn(b'void foo() {}', bundled)
                 self.assertNotIn(b'void bar() {}', bundled)
 
+    def test_gcc_pragmas(self) -> None:
+        files = {
+            'example.test.cpp': textwrap.dedent("""\
+                #pragma GCC target("avx2")
+                #pragma GCC optimize("O3,unroll-loops")
+                int main() {}
+                """).encode(),
+        }
+        path = pathlib.Path('example.test.cpp')
+        with tests.utils.load_files(files) as tempdir:
+            with tests.utils.chdir(tempdir):
+                bundler = cplusplus_bundle.Bundler(iquotes=[tempdir])
+                bundler.update(path)
+                bundled = bundler.get()
+                self.assertIn(b'#pragma GCC target("avx2")', bundled)
+                self.assertIn(b'#pragma GCC optimize("O3,unroll-loops")', bundled)
+                self.assertNotIn(b'OJ_BUNDLE_PRAGMA', bundled)
+
     def test_without_extension(self) -> None:
         # .hppといった拡張子がないheader fileがinclude中に現れても正しく展開される事を確認
 
