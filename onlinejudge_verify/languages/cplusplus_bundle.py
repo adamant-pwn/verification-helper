@@ -368,7 +368,11 @@ class Bundler:
                 if matched:
                     included = matched.group(1).decode()
                     logger.debug('%s: line %s: #include <%s>', str(path), i + 1, str(included))
-                    if included in self.pragma_once_system:
+                    if included in ('cassert', 'assert.h'):
+                        # Re-inclusion updates assert according to the current NDEBUG.
+                        # These headers are not guaranteed to be in bits/stdc++.h either.
+                        self.result_lines.append(line)
+                    elif included in self.pragma_once_system:
                         self._line(i + 2, path)
                     elif not is_toplevel:
                         # #pragma once 系の判断ができない場合はそっとしておく

@@ -151,6 +151,43 @@ class TestCPlusPlusBundlingEndToEnd(unittest.TestCase):
                 # run
                 self.assertEqual(subprocess.check_output([str(pathlib.Path('a.out').resolve())]), ('Hello World' + os.linesep).encode())
 
+    def test_assert_headers_reincluded(self) -> None:
+        for header in ('cassert', 'assert.h'):
+            for umbrella in (None, 'bits/stdc++.h', 'bits/extc++.h', 'bits/stdtr1c++.h'):
+                with self.subTest(header=header, umbrella=umbrella):
+                    prefix = '#include <{}>\n'.format(umbrella) if umbrella else ''
+                    source = prefix + textwrap.dedent("""\
+                        #include <{header}>
+                        int enabled() {{
+                            int calls = 0;
+                            assert(++calls);
+                            return calls;
+                        }}
+                        #define NDEBUG
+                        #include <{header}>
+                        int disabled() {{
+                            int calls = 0;
+                            assert(++calls);
+                            return calls;
+                        }}
+                        #undef NDEBUG
+                        #include <{header}>
+                        int main() {{
+                            int calls = 0;
+                            assert(++calls);
+                            return enabled() != 1 || disabled() != 0 || calls != 1;
+                        }}
+                        """).format(header=header)
+                    with tests.utils.load_files({'main.cpp': source.encode()}) as tempdir:
+                        with tests.utils.chdir(tempdir):
+                            bundler = cplusplus_bundle.Bundler(iquotes=[tempdir])
+                            bundler.update(pathlib.Path('main.cpp'))
+                            bundled = bundler.get()
+                            self.assertEqual(bundled.count(('#include <{}>'.format(header)).encode()), 3)
+                            pathlib.Path('main.bundled.cpp').write_bytes(bundled)
+                            subprocess.check_call(['g++', '-std=c++14', '-o', 'a.out', 'main.bundled.cpp'])
+                            subprocess.check_call([str(pathlib.Path('a.out').resolve())])
+
     def test_complicated(self) -> None:
         library_files_1 = {
             pathlib.Path('library', 'macro.hpp'): textwrap.dedent("""\
