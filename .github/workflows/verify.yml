@@ -24,7 +24,7 @@ jobs:
       uses: haskell-actions/setup@v2
       with:
         ghc-version: '8.8.4'
-        cabal-version: '3.0.0.0'
+        cabal-version: '3.18.2.0'
 
     # required only if you want to verify Java code
     - name: Install dependencies (Java)

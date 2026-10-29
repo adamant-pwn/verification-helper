@@ -93,8 +93,6 @@ class CPlusPlusLanguage(Language):
 
     def _list_environments(self) -> List[CPlusPlusLanguageEnvironment]:
         default_CXXFLAGS = ['--std=c++17', '-O2', '-Wall', '-g']
-        if platform.system() == 'Windows' or 'CYGWIN' in platform.system():
-            default_CXXFLAGS.append('-Wl,-stack,0x10000000')
         if platform.system() == 'Darwin':
             default_CXXFLAGS.append('-Wl,-stack_size,0x10000000')
         if platform.uname().system == 'Linux' and 'Microsoft' in platform.uname().release:
@@ -132,6 +130,13 @@ class CPlusPlusLanguage(Language):
 
         if not envs:
             raise RuntimeError('No C++ compilers found')
+        if (platform.system() == 'Windows' or 'CYGWIN' in platform.system()) and not ('CXXFLAGS' in os.environ and 'environments' not in self.config):
+            for env in envs:
+                if env.CXXFLAGS is default_CXXFLAGS:
+                    # Windows Clang may target MSVC or MinGW, whose linkers use different syntax.
+                    target = subprocess.check_output([str(env.CXX), '-dumpmachine']).decode().strip()
+                    stack_flag = '-Wl,/STACK:0x10000000' if 'msvc' in target else '-Wl,-stack,0x10000000'
+                    env.CXXFLAGS = [*default_CXXFLAGS, stack_flag]
         return envs
 
     def list_attributes(self, path: pathlib.Path, *, basedir: pathlib.Path) -> Dict[str, Any]:
